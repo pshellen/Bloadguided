@@ -17,6 +17,10 @@ machine. Only the local order lookup response is sent to the player.
 
 ## Sign setup
 
+- When installing this ZIP as a separate package, copy the original sign's
+  **Device Serial**, **Indy ID**, **Rotation**, **Blank**, logo, and debug
+  settings. Installing as a new package does not inherit another package's
+  configuration.
 - Enable **Seat navigation** on the Auditorium 9 sign.
 - Set **Order lookup URL** to the collector's LAN address, including the
   `{order}` placeholder. Example:

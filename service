@@ -372,7 +372,7 @@ def main():
         update = threading.Thread(target=update_thread)
         update.daemon = True
         update.start()
-        if sign and sign.get('seat_navigation'):
+        if sign and sign.get('seat_navigation', False):
             write_seat_navigation({'active': False})
             scanner = threading.Thread(target=scanner_thread, args=(sign,))
             scanner.daemon = True

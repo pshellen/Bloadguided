@@ -168,13 +168,21 @@ class Configuration(object):
                     continue
                 if option['type'] == 'list':
                     items = []
-                    for item in config[option['name']]:
+                    for item in config.get(option['name'], option.get('default', [])):
                         parsed = {}
                         parse_recursive(option['items'], item, parsed)
                         items.append(parsed)
                     target[option['name']] = items
                     continue
-                target[option['name']] = types[option['type']](config[option['name']])
+                if option['name'] in config:
+                    value = config[option['name']]
+                elif 'default' in option:
+                    value = option['default']
+                else:
+                    # New optional fields can be introduced without crashing a
+                    # service that still has the previous package config.
+                    value = None
+                target[option['name']] = types[option['type']](value)
 
         parsed = {}
         parse_recursive(self._options, self._config, parsed)
