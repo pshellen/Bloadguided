@@ -20,6 +20,10 @@ route to a guest's seats. The current seat map is for Palmyra Auditorium 9.
 The sign never stores INDY OAuth credentials. Those remain on the collector
 machine. Only the local order lookup response is sent to the player.
 
+`seat_navigation.json` is intentionally not included in the package source.
+The service creates it at runtime because info-beamer package files are
+read-only on the player.
+
 ## Sign setup
 
 - When installing this ZIP as a separate package, copy the original sign's
