@@ -1,5 +1,5 @@
 {
-    "name": "Aud-Sign-and-Seat-Nav-v0.1.2",
+    "name": "Aud-Sign-and-Seat-Nav-v0.1.3",
     "permissions": {
         "network": "Remote API access",
         "input": "Read ticket QR codes from a USB scanner"

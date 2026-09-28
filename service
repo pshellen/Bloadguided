@@ -23,7 +23,7 @@ UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chr
 # Incremented whenever sandbox permissions change so info-beamer rebuilds and
 # restarts the package service with the permissions declared in node.json.
 SERVICE_PERMISSION_REVISION = 3
-PACKAGE_VERSION = '0.1.2'
+PACKAGE_VERSION = '0.1.3'
 
 # Linux input key codes used by keyboard-style QR scanners.
 KEY_DIGITS = {
