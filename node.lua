@@ -8,7 +8,7 @@ local json = require "json"
 local matrix = require "matrix2d"
 
 local font = resource.load_font "font.ttf"
-local package_version = "0.1.3"
+local package_version = "0.1.4"
 local black = resource.create_colored_texture(0, 0, 0, 1)
 local badge_blue = resource.create_colored_texture(2/255, 122/255, 193/255, 1)
 local badge_green = resource.create_colored_texture(0.02, 0.55, 0.18, 1)
@@ -17,6 +17,7 @@ local top_logo = resource.load_image "logo.png"
 local route_blue = resource.create_colored_texture(0.02, 0.36, 0.86, 1)
 local seat_chair_teal = resource.load_image "seat-chair-teal.png"
 local seat_chair_yellow = resource.load_image "seat-chair-yellow.png"
+local arrival_marker = resource.load_image "arrival-marker.png"
 local warning_red = resource.create_colored_texture(0.82, 0.16, 0.18, 1)
 local screen_gray = resource.create_colored_texture(0.72, 0.74, 0.78, 1)
 
@@ -489,6 +490,17 @@ local function draw_path_to(label, progress)
     end
 end
 
+local function draw_arrival_marker(label, progress)
+    if progress < 0.82 then return end
+    local sx, _, row = seat_xy(label)
+    if not sx or not row then return end
+    local px, py, s = map_transform(sx, aisle_y[row])
+    local reveal = math.min(1, (progress-0.82)/0.18)
+    local pulse = 1 + 0.16 * ((math.sin(sys.now()*4.5)+1)/2)
+    local size = math.max(12, 25*s) * reveal * pulse
+    arrival_marker:draw(px-size/2, py-size/2, px+size/2, py+size/2)
+end
+
 local function draw_seat(label, x, y, selected)
     local px, py, s = map_transform(x, y)
     local w, h = 44*s, 39*s
@@ -527,6 +539,9 @@ local function draw_seat_map()
     local progress = math.min(1, (sys.now() - seat_navigation_started) / 2.5)
     for _, label in ipairs(seat_navigation.seats or {}) do
         draw_path_to(label, progress)
+    end
+    for _, label in ipairs(seat_navigation.seats or {}) do
+        draw_arrival_marker(label, progress)
     end
 
 end
