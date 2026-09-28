@@ -1,0 +1,9 @@
+{
+    "name": "Indy Single Screen Info",
+    "author": "Florian Wesch <fw@info-beamer.com>",
+    "desc": "Handles a single screen and shows information based on Indy API.",
+    "runtime": {
+        "antialias": true
+    },
+    "platforms": ["pi/epoch-1", "pi/epoch-2"]
+}

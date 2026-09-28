@@ -1,0 +1,106 @@
+{
+    "name": "Indy Sign",
+    "permissions": {
+        "network": "Remote API access",
+        "input": "Read ticket QR codes from a USB scanner"
+    },
+    "options": [{
+        "title": "Signs",
+        "doc_link": true,
+        "name": "signs_section",
+        "type": "section"
+    }, {
+        "title": "Add all signs",
+        "name": "signs",
+        "type": "list",
+        "itemname": "Sign",
+        "items": [{
+            "title": "Device Serial",
+            "ui_width": 4,
+            "name": "serial",
+            "type": "device",
+            "default": ""
+        }, {
+            "title": "Indy ID",
+            "ui_width": 2,
+            "name": "indy_id",
+            "type": "integer"
+        }, {
+            "title": "Rotation",
+            "ui_width": 2,
+            "hint": "Screen rotates clock-wise",
+            "name": "rotation",
+            "type": "select",
+            "options": [
+                [0, "None"],
+                [90, "90°"],
+                [180, "180°"],
+                [270, "270°"]
+            ],
+            "default": 0
+        }, {
+            "title": "Blank",
+            "ui_width": 2,
+            "name": "blank",
+            "type": "boolean",
+            "default": false
+        }, {
+            "title": "Debug",
+            "ui_width": 2,
+            "name": "debug",
+            "type": "boolean",
+            "default": false
+        }, {
+            "title": "Seat navigation",
+            "ui_width": 2,
+            "name": "seat_navigation",
+            "type": "boolean",
+            "default": false,
+            "hint": "Replace the poster temporarily with a seat route after a ticket scan"
+        }]
+    },
+
+    {
+        "title": "Ticket scanner",
+        "type": "section"
+    }, {
+        "title": "Order lookup URL",
+        "name": "seat_lookup_url",
+        "type": "string",
+        "default": "",
+        "hint": "Collector endpoint containing {order}, for example http://192.168.1.20:8765/api/order/{order}"
+    }, {
+        "title": "Scanner device",
+        "name": "scanner_device",
+        "type": "string",
+        "default": "auto",
+        "hint": "Use auto, or a stable /dev/input/by-id/...-event-kbd path"
+    }, {
+        "title": "Seat map display time",
+        "ui_width": 3,
+        "name": "seat_display_seconds",
+        "type": "integer",
+        "default": 20,
+        "hint": "Seconds before returning to the poster"
+    },
+
+    {
+        "title": "Player settings",
+        "type": "section"
+    }, {
+        "title": "Corner Logo",
+        "ui_width": 3,
+        "name": "corner_logo",
+        "type": "resource",
+        "valid": ["image"],
+        "hint": "Best use transparent 55x55 PNG image",
+        "default": "logo.png"
+    }, {
+        "title": "Logo",
+        "ui_width": 3,
+        "name": "main_logo",
+        "type": "resource",
+        "valid": ["image"],
+        "default": "flagship.png"
+    }]
+}
