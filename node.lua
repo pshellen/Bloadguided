@@ -234,7 +234,7 @@ util.json_watch("screen.json", function(new_screen)
     screen = new_screen
 end)
 
-util.json_watch("seat_navigation.json", function(new_navigation)
+util.json_watch("seat_nav_runtime.json", function(new_navigation)
     seat_navigation = new_navigation or {active = false}
     seat_navigation_started = sys.now()
 end)

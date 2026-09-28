@@ -13,14 +13,14 @@ route to a guest's seats. The current seat map is for Palmyra Auditorium 9.
 1. A USB QR scanner types the numeric order number and sends Enter.
 2. The package service requests that order from the local collector.
 3. The service verifies the returned `screen_id` matches this sign's Indy ID.
-4. `seat_navigation.json` is written for the Lua renderer.
+4. `seat_nav_runtime.json` is written for the Lua renderer.
 5. The poster is hidden, the route draws from the entrance, and the poster
    automatically returns after the configured display time.
 
 The sign never stores INDY OAuth credentials. Those remain on the collector
 machine. Only the local order lookup response is sent to the player.
 
-`seat_navigation.json` is intentionally not included in the package source.
+`seat_nav_runtime.json` is intentionally not included in the package source.
 The service creates it at runtime because info-beamer package files are
 read-only on the player.
 

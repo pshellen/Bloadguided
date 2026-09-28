@@ -22,7 +22,7 @@ IMGIX_BASE = "https://indy-systems.imgix.net/"
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36'
 # Incremented whenever sandbox permissions change so info-beamer rebuilds and
 # restarts the package service with the permissions declared in node.json.
-SERVICE_PERMISSION_REVISION = 2
+SERVICE_PERMISSION_REVISION = 3
 
 # Linux input key codes used by keyboard-style QR scanners.
 KEY_DIGITS = {
@@ -42,7 +42,7 @@ def find_sign():
     return None
 
 def write_seat_navigation(payload):
-    with open('seat_navigation.json', 'wb') as f:
+    with open('seat_nav_runtime.json', 'wb') as f:
         json.dump(payload, f)
 
 def parse_utc(value):
