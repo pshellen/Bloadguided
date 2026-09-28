@@ -446,10 +446,14 @@ local function seat_xy(label)
 end
 
 local function map_transform(x, y)
-    local header = HEIGHT * 0.16
-    local map_scale = math.min((WIDTH - 50) / 792, (HEIGHT - header - 25) / 760)
-    local ox = (WIDTH - 792 * map_scale) / 2
-    local oy = header + (HEIGHT - header - 760 * map_scale) / 2
+    local x1, y1 = layout.poster_x1, layout.poster_y
+    local x2, y2 = layout.poster_x2, layout.poster_y2
+    local area_w, area_h = x2-x1, y2-y1
+    local header = area_h * 0.16
+    local pad = math.max(8, math.min(area_w, area_h) * 0.015)
+    local map_scale = math.min((area_w-pad*2)/792, (area_h-header-pad*2)/760)
+    local ox = x1 + (area_w-792*map_scale)/2
+    local oy = y1 + header + (area_h-header-760*map_scale)/2
     return ox + x * map_scale, oy + y * map_scale, map_scale
 end
 
@@ -519,30 +523,43 @@ local function draw_seat_map()
     end
 
     local ex, ey = map_transform(45, 748)
-    font:write(ex + 12, ey - 18, 'ENTRY', math.max(16, HEIGHT*0.023), 1,1,1,1)
+    local _, _, s = map_transform(0, 0)
+    font:write(ex + 12*s, ey - 18*s, 'ENTRY', math.max(12, 17*s), 1,1,1,1)
+end
+
+local function draw_navigation_centered(text, y, size, max_width)
+    size = fit_text(text, size, max_width, 12)
+    local w = font:width(text, size)
+    local center = (layout.poster_x1 + layout.poster_x2) / 2
+    font:write(center-w/2, y, text, size, 1,1,1,1)
 end
 
 local function draw_navigation()
-    black:draw(0, 0, WIDTH, HEIGHT)
+    local x1, y1 = layout.poster_x1, layout.poster_y
+    local x2, y2 = layout.poster_x2, layout.poster_y2
+    local area_w, area_h = x2-x1, y2-y1
+    local short = math.min(area_w, area_h)
+    local header_h = area_h * 0.16
+    black:draw(x1, y1, x2, y2)
     local state = seat_navigation.state or 'error'
     local title = seat_navigation.title or ''
     local seats = table.concat(seat_navigation.seats or {}, ', ')
-    local top = math.max(18, HEIGHT * 0.025)
+    local top = y1 + math.max(6, area_h*0.018)
 
     if state ~= 'ok' then
-        warning_red:draw(0, 0, WIDTH, HEIGHT * 0.19)
+        warning_red:draw(x1, y1, x2, y1+header_h)
     end
-    draw_centered_text(title ~= '' and title or (seat_navigation.message or 'Ticket scan'), top,
-                       math.max(26, HEIGHT*0.055), WIDTH-40)
+    draw_navigation_centered(title ~= '' and title or (seat_navigation.message or 'Ticket scan'), top,
+                             math.max(18, short*0.055), area_w-20)
     if seats ~= '' then
-        draw_centered_text('Seats ' .. seats .. '  •  Auditorium ' .. tostring(seat_navigation.auditorium or ''),
-                           top + HEIGHT*0.065, math.max(20, HEIGHT*0.037), WIDTH-40)
+        draw_navigation_centered('Seats ' .. seats .. '  •  Auditorium ' .. tostring(seat_navigation.auditorium or ''),
+                                 top+header_h*0.46, math.max(14, short*0.036), area_w-20)
     end
     if state ~= 'ok' then
-        draw_centered_text(seat_navigation.message or '', top + HEIGHT*0.065,
-                           math.max(20, HEIGHT*0.035), WIDTH-40)
-        draw_centered_text(seat_navigation.help or 'Please see a manager for help', top + HEIGHT*0.115,
-                           math.max(18, HEIGHT*0.03), WIDTH-40)
+        draw_navigation_centered(seat_navigation.message or '', top+header_h*0.42,
+                                 math.max(13, short*0.031), area_w-20)
+        draw_navigation_centered(seat_navigation.help or 'Please see a manager for help', top+header_h*0.70,
+                                 math.max(12, short*0.027), area_w-20)
     end
     if seat_navigation.screen_id == indy_id and #(seat_navigation.seats or {}) > 0 then
         draw_seat_map()
@@ -622,10 +639,12 @@ function node.render()
     gl.scale(scale, scale)
     gl.translate(-WIDTH/2, -HEIGHT/2)
 
+    player.draw()
     if navigation_active() then
         draw_navigation()
-    else
-        player.draw()
+        if screen.show then
+            draw_badge(screen.show.status_label, screen.show.upcoming)
+        end
     end
 
     if not indy_id then
