@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Indy Sign — Package Preview</title>
+  <style>
+    :root {
+      --bg: #000;
+      --badge: #027ac1;
+      --badge-upcoming: #0e8c2e;
+      --border: #73c7ff;
+      --border-upcoming: #0e8c2e;
+      --chip: rgba(0, 0, 0, 0.75);
+      --text: #fff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #1a1a1a;
+      color: var(--text);
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #aaa;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .toolbar label {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .toolbar input,
+    .toolbar select,
+    .toolbar button {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #eee;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+
+    .toolbar button {
+      cursor: pointer;
+      background: #027ac1;
+      border-color: #027ac1;
+    }
+
+    .toolbar button:hover { filter: brightness(1.1); }
+
+    .status {
+      font-size: 12px;
+      color: #888;
+      min-height: 1.2em;
+    }
+
+    .status.error { color: #f66; }
+
+    /* Logical canvas after info-beamer util.screen_transform(rotation) */
+    .stage-wrap {
+      width: min(960px, 100%);
+      background: #111;
+      border: 1px solid #333;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .stage-wrap.physical {
+      width: min(960px, 100%);
+    }
+
+    .stage {
+      width: var(--logical-w, 1920px);
+      height: var(--logical-h, 1080px);
+      transform-origin: top left;
+      background: var(--bg);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      color: var(--text);
+    }
+
+    .logo-row {
+      display: none;
+    }
+
+    .poster-area {
+      position: relative;
+      margin: calc(56px * var(--sy, 1)) calc(4px * var(--sx, 1)) 0;
+      height: calc(700px * var(--sy, 1));
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .poster-frame {
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      border: calc(6px * var(--ss, 1)) solid var(--poster-border, var(--border));
+      border-radius: calc(22px * var(--ss, 1));
+      overflow: hidden;
+      background: transparent;
+      line-height: 0;
+    }
+
+    .poster-frame img,
+    .poster-frame video {
+      display: block;
+      max-width: 100%;
+      max-height: calc(700px * var(--sy, 1) - 12px * var(--ss, 1));
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      background: transparent;
+    }
+
+    .poster-stack {
+      position: relative;
+      display: inline-flex;
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .badge {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translate(-50%, -40%);
+      background: var(--badge-bg, var(--badge));
+      color: #fff;
+      font-weight: 700;
+      font-size: calc(48px * var(--ss, 1));
+      text-transform: uppercase;
+      padding: calc(18px * var(--sy, 1)) calc(28px * var(--sx, 1));
+      border-radius: 4px;
+      white-space: nowrap;
+      z-index: 2;
+      line-height: 1.1;
+    }
+
+    .title-row {
+      margin-top: calc(9px * var(--sy, 1));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(20px * var(--sx, 1));
+      padding: 0 calc(20px * var(--sx, 1));
+      min-height: calc(64px * var(--ss, 1));
+    }
+
+    .stage.portrait .title-row {
+      min-height: calc(var(--logical-short, 1080px) * 0.08);
+    }
+
+    .title {
+      margin-top: 0;
+      text-align: center;
+      font-size: calc(64px * var(--ss, 1));
+      font-weight: 700;
+      padding: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .stage.portrait .title {
+      font-size: calc(var(--logical-short, 1080px) * 0.08);
+    }
+
+    .badge-3d {
+      display: none;
+      height: calc(var(--logical-short, 1080px) * 0.09);
+      width: auto;
+      max-width: 22%;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .badge-3d.show {
+      display: block;
+    }
+
+    .screen-name {
+      margin-top: calc(12px * var(--sy, 1));
+      text-align: center;
+      font-size: calc(var(--logical-short, 1080px) * 0.048);
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0 calc(20px * var(--sx, 1));
+    }
+
+    .meta {
+      margin-top: calc(20px * var(--sy, 1));
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: calc(16px * var(--sx, 1));
+      flex-wrap: wrap;
+      padding: 0 calc(40px * var(--sx, 1));
+    }
+
+    .chip {
+      background: var(--chip);
+      padding: calc(8px * var(--sy, 1)) calc(12px * var(--sx, 1));
+      border-radius: 4px;
+      font-size: calc(13px * var(--ss, 1));
+      font-weight: 700;
+    }
+
+    .chip.rating {
+      font-size: calc(28px * var(--ss, 1));
+    }
+
+    .bottom {
+      margin-top: auto;
+      padding: 0 calc(40px * var(--sx, 1)) calc(12px * var(--sy, 1)) calc(8px * var(--sx, 1));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: calc(var(--logical-short, 1080px) * 0.048);
+      font-weight: 700;
+      text-transform: uppercase;
+      gap: calc(var(--logical-short, 1080px) * 0.018);
+    }
+
+    .bottom-left {
+      display: flex;
+      align-items: center;
+      gap: calc(var(--logical-short, 1080px) * 0.018);
+      min-width: 0;
+    }
+
+    .corner-logo {
+      width: calc(var(--logical-short, 1080px) * 0.18);
+      height: calc(var(--logical-short, 1080px) * 0.18);
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .idle {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      letter-spacing: 0.3em;
+      opacity: 0.5;
+    }
+
+    .note {
+      max-width: 960px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .time-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      width: min(960px, 100%);
+      padding: 10px 12px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 6px;
+    }
+
+    .time-bar label {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .time-bar input[type="checkbox"] {
+      accent-color: #027ac1;
+    }
+
+    .time-bar input[type="datetime-local"] {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #eee;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+
+    .time-bar input[type="range"] {
+      flex: 1 1 280px;
+      min-width: 200px;
+    }
+
+    .time-bar button {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #eee;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .time-bar button:hover { border-color: #027ac1; }
+
+    .time-bar.disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .time-readout {
+      font-size: 12px;
+      color: #aaa;
+      min-width: 160px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Package layout preview</h1>
+
+  <div class="toolbar">
+    <label for="screenId">Indy screen ID</label>
+    <input id="screenId" type="number" value="2339" min="1" />
+    <button id="loadBtn" type="button">Load live data</button>
+    <select id="showPick"></select>
+    <label for="rotation">Rotation</label>
+    <select id="rotation">
+      <option value="0">None (0°)</option>
+      <option value="90">90°</option>
+      <option value="180">180°</option>
+      <option value="270">270°</option>
+    </select>
+    <label for="viewMode">View</label>
+    <select id="viewMode">
+      <option value="logical">Logical (after transform)</option>
+      <option value="physical">Physical (on landscape TV)</option>
+    </select>
+  </div>
+
+  <div class="time-bar" id="timeBar">
+    <label>
+      <input id="emulateTime" type="checkbox" />
+      Emulate time
+    </label>
+    <input id="timeInput" type="datetime-local" disabled />
+    <input id="timeSlider" type="range" min="0" max="100" value="0" disabled />
+    <button id="timeNowBtn" type="button" disabled>Jump to now</button>
+    <span class="time-readout" id="timeReadout">Live Indy <code>current</code> flag</span>
+  </div>
+
+  <div class="status" id="status">Loading…</div>
+
+  <div class="stage-wrap" id="stageWrap">
+    <div class="stage" id="stage">
+      <div class="poster-area" id="posterArea"></div>
+      <div class="title-row">
+        <img class="badge-3d" id="badge3d" src="3D.png" alt="3D" />
+        <div class="title" id="title"></div>
+      </div>
+      <div class="screen-name" id="screenName"></div>
+      <div class="bottom">
+        <div class="bottom-left">
+          <img class="corner-logo" id="cornerLogo" src="flagship.png" alt="" />
+        </div>
+        <div id="showTime"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">
+    Matches package <code>Rotation</code> in info-beamer (same as <code>node.json</code>).
+    <strong>Logical</strong> = coordinate system after <code>util.screen_transform</code>
+    (90°/270° → 1080×1920). <strong>Physical</strong> = how that looks on a landscape HDMI panel.
+    With <strong>Emulate time</strong> on, a show is <strong>NEXT SHOWING</strong> (green)
+    from 25 minutes before start until start, then <strong>NOW PLAYING</strong> until the next
+    show (or start + runtime for the last one).
+  </p>
+
+  <script>
+    const IMGIX = "https://indy-systems.imgix.net/";
+    const NATIVE_W = 1920;
+    const NATIVE_H = 1080;
+    const statusEl = document.getElementById("status");
+    const showPick = document.getElementById("showPick");
+    const rotationEl = document.getElementById("rotation");
+    const viewModeEl = document.getElementById("viewMode");
+    const emulateTimeEl = document.getElementById("emulateTime");
+    const timeInput = document.getElementById("timeInput");
+    const timeSlider = document.getElementById("timeSlider");
+    const timeNowBtn = document.getElementById("timeNowBtn");
+    const timeReadout = document.getElementById("timeReadout");
+    let screenData = null;
+    let syncingTimeUi = false;
+
+    function logicalSize(rotation) {
+      // After util.screen_transform on a landscape panel
+      if (rotation === 90 || rotation === 270) {
+        return { w: NATIVE_H, h: NATIVE_W };
+      }
+      return { w: NATIVE_W, h: NATIVE_H };
+    }
+
+    function scaleStage() {
+      const wrap = document.getElementById("stageWrap");
+      const stage = document.getElementById("stage");
+      const rotation = Number(rotationEl.value);
+      const physical = viewModeEl.value === "physical";
+      const { w, h } = logicalSize(rotation);
+
+      stage.style.setProperty("--logical-w", w + "px");
+      stage.style.setProperty("--logical-h", h + "px");
+      // Same ratios as node.lua scale_x / scale_y / scale_s
+      stage.style.setProperty("--sx", String(w / NATIVE_W));
+      stage.style.setProperty("--sy", String(h / NATIVE_H));
+      stage.style.setProperty("--ss", String(Math.min(w / NATIVE_W, h / NATIVE_H)));
+      stage.style.setProperty("--logical-short", Math.min(w, h) + "px");
+      stage.style.width = w + "px";
+      stage.style.height = h + "px";
+      stage.classList.toggle("portrait", rotation === 90 || rotation === 270);
+      wrap.classList.toggle("physical", physical);
+
+      const maxW = Math.min(960, window.innerWidth - 48);
+
+      if (physical && (rotation === 90 || rotation === 270)) {
+        // Show portrait content rotated onto a landscape TV frame
+        const s = maxW / NATIVE_W;
+        wrap.style.width = maxW + "px";
+        wrap.style.height = NATIVE_H * s + "px";
+        wrap.style.aspectRatio = "auto";
+
+        const ox = (NATIVE_W - w) / 2;
+        const oy = (NATIVE_H - h) / 2;
+        stage.style.transformOrigin = `${w / 2}px ${h / 2}px`;
+        stage.style.transform =
+          `translate(${ox}px, ${oy}px) scale(${s}) rotate(${rotation}deg)`;
+        stage.style.marginLeft = "0";
+        stage.style.position = "absolute";
+        stage.style.left = ((maxW - w * s) / 2) + "px";
+        stage.style.top = ((NATIVE_H * s - h * s) / 2) + "px";
+      } else if (physical && rotation === 180) {
+        const s = maxW / w;
+        wrap.style.width = maxW + "px";
+        wrap.style.height = h * s + "px";
+        stage.style.position = "absolute";
+        stage.style.left = "0";
+        stage.style.top = "0";
+        stage.style.transformOrigin = `${w / 2}px ${h / 2}px`;
+        stage.style.transform = `scale(${s}) rotate(180deg)`;
+      } else {
+        // Logical view: show the canvas the package draws into
+        const s = Math.min(maxW / w, (window.innerHeight * 0.7) / h);
+        wrap.style.width = w * s + "px";
+        wrap.style.height = h * s + "px";
+        stage.style.position = "absolute";
+        stage.style.left = "0";
+        stage.style.top = "0";
+        stage.style.transformOrigin = "top left";
+        stage.style.transform = `scale(${s})`;
+      }
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).toUpperCase();
+    }
+
+    function toLocalInputValue(date) {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function dayBounds(showings) {
+      if (!showings.length) {
+        const now = new Date();
+        const start = new Date(now);
+        start.setHours(8, 0, 0, 0);
+        const end = new Date(now);
+        end.setHours(23, 59, 0, 0);
+        return { start, end };
+      }
+      const times = showings.map((s) => new Date(s.time).getTime());
+      const first = Math.min(...times);
+      const lastShow = showings[showings.length - 1];
+      const lastStart = new Date(lastShow.time).getTime();
+      const runtimeMin = Number(lastShow.movie?.duration) || 120;
+      const lastEnd = lastStart + runtimeMin * 60 * 1000;
+      // Pad a bit before first / after last for scrubbing
+      return {
+        start: new Date(first - 60 * 60 * 1000),
+        end: new Date(lastEnd + 30 * 60 * 1000),
+      };
+    }
+
+    const UPCOMING_MINUTES = 25;
+
+    function showWindow(showings, idx) {
+      const show = showings[idx];
+      const start = new Date(show.time).getTime();
+      const next = showings[idx + 1];
+      const runtimeMin = Number(show.movie?.duration) || 120;
+      const end = next
+        ? new Date(next.time).getTime()
+        : start + runtimeMin * 60 * 1000;
+      return { start, end };
+    }
+
+    function pickShowAt(showings, when) {
+      if (!showings.length) return { show: null, idx: -1, phase: "none" };
+      const t = when.getTime();
+
+      // Upcoming: 25 minutes before start until start
+      for (let i = 0; i < showings.length; i++) {
+        const start = new Date(showings[i].time).getTime();
+        const upcomingFrom = start - UPCOMING_MINUTES * 60 * 1000;
+        if (t >= upcomingFrom && t < start) {
+          return { show: showings[i], idx: i, phase: "upcoming" };
+        }
+      }
+
+      // Playing: start until next show / runtime end
+      for (let i = 0; i < showings.length; i++) {
+        const { start, end } = showWindow(showings, i);
+        if (t >= start && t < end) {
+          return { show: showings[i], idx: i, phase: "current" };
+        }
+      }
+
+      return { show: null, idx: -1, phase: "idle" };
+    }
+
+    function pickShow(showings) {
+      return showings.find((s) => s.current) || showings.find((s) => !s.past) || showings[0] || null;
+    }
+
+    function statusLabelFor(show, phase) {
+      if (phase === "upcoming") return "NEXT SHOWING";
+      return "NOW PLAYING";
+    }
+
+    function render(show, screenName, phase) {
+      const posterArea = document.getElementById("posterArea");
+      const title = document.getElementById("title");
+      const badge3d = document.getElementById("badge3d");
+      const screenNameEl = document.getElementById("screenName");
+      const showTime = document.getElementById("showTime");
+      const upcoming = phase === "upcoming";
+
+      const has3d = !!(show && (show.showingBadges || []).some((b) => {
+        const t = String(b.title || b.displayName || "").trim().toLowerCase();
+        return t === "3d" || t.startsWith("3d ") || t.includes(" 3d");
+      }));
+
+      if (!show) {
+        posterArea.innerHTML = `<div class="idle">NO CURRENT SHOW</div>`;
+        title.textContent = "";
+        badge3d.classList.remove("show");
+        screenNameEl.textContent = (screenName || "").toUpperCase();
+        showTime.textContent = "";
+        return;
+      }
+
+      const movie = show.movie;
+      const motion = movie.animatedPosterVideo;
+      const poster = movie.posterImage;
+      const media = motion
+        ? `<video autoplay muted loop playsinline src="${IMGIX}${motion}?auto=format,compress"></video>`
+        : `<img alt="" src="${IMGIX}${poster}?fit=crop&w=1000&h=1500&fm=jpeg&auto=format,compress&cs=origin" />`;
+
+      const label = statusLabelFor(show, phase);
+      const border = upcoming ? "var(--border-upcoming)" : "var(--border)";
+      const badgeBg = upcoming ? "var(--badge-upcoming)" : "var(--badge)";
+
+      posterArea.innerHTML = `
+        <div class="poster-stack">
+          <div class="badge" style="--badge-bg:${badgeBg}">${label}</div>
+          <div class="poster-frame" style="--poster-border:${border}">${media}</div>
+        </div>
+      `;
+
+      title.textContent = movie.name;
+      badge3d.classList.toggle("show", has3d);
+      screenNameEl.textContent = (screenName || "").toUpperCase();
+      showTime.textContent = "Show time: " + formatTime(show.time);
+    }
+
+    function fillPicker(showings) {
+      showPick.innerHTML = "";
+      showings.forEach((s, i) => {
+        const opt = document.createElement("option");
+        const tag = s.current ? " [current]" : s.past ? " [past]" : "";
+        opt.value = String(i);
+        opt.textContent = `${formatTime(s.time)} — ${s.movie.name}${tag}`;
+        showPick.appendChild(opt);
+      });
+      const currentIdx = showings.findIndex((s) => s.current);
+      showPick.value = String(currentIdx >= 0 ? currentIdx : 0);
+    }
+
+    function setupTimeSlider(showings) {
+      const { start, end } = dayBounds(showings);
+      const span = Math.max(end.getTime() - start.getTime(), 60 * 1000);
+      timeSlider.min = "0";
+      timeSlider.max = String(Math.floor(span / 60000)); // minutes
+      timeSlider.dataset.startMs = String(start.getTime());
+      return { start, end };
+    }
+
+    function emulatedDateFromSlider() {
+      const startMs = Number(timeSlider.dataset.startMs || Date.now());
+      return new Date(startMs + Number(timeSlider.value) * 60000);
+    }
+
+    function setTimeControlsEnabled(on) {
+      timeInput.disabled = !on;
+      timeSlider.disabled = !on;
+      timeNowBtn.disabled = !on;
+      showPick.disabled = on;
+    }
+
+    function applySelection() {
+      if (!screenData) return;
+      const showings = screenData.todaysShowings || [];
+
+      if (emulateTimeEl.checked) {
+        const when = emulatedDateFromSlider();
+        const { show, idx, phase } = pickShowAt(showings, when);
+        if (idx >= 0) showPick.value = String(idx);
+        render(show, screenData.name, phase);
+        const label = show
+          ? `${formatTime(show.time)} · ${show.movie.name} · ${phase}`
+          : "no show in window";
+        timeReadout.textContent = `Emulating ${when.toLocaleString()} → ${label}`;
+        const media = show?.movie?.animatedPosterVideo ? "motion video" : "static poster";
+        statusEl.textContent = `${screenData.name} · emulated · ${media}`;
+      } else {
+        const show = showings[Number(showPick.value)] || pickShow(showings);
+        render(show, screenData.name, show?.current ? "current" : undefined);
+        timeReadout.textContent = "Live Indy current flag";
+        const media = show?.movie?.animatedPosterVideo ? "motion video" : "static poster";
+        statusEl.textContent = `${screenData.name} · ${showings.length} showings · ${media}`;
+      }
+    }
+
+    function jumpTimeTo(date) {
+      if (!screenData) return;
+      const { start, end } = dayBounds(screenData.todaysShowings || []);
+      const clamped = Math.min(Math.max(date.getTime(), start.getTime()), end.getTime());
+      const minutes = Math.round((clamped - start.getTime()) / 60000);
+      syncingTimeUi = true;
+      timeSlider.value = String(minutes);
+      timeInput.value = toLocalInputValue(new Date(clamped));
+      syncingTimeUi = false;
+      applySelection();
+    }
+
+    async function loadScreen() {
+      const id = document.getElementById("screenId").value;
+      statusEl.className = "status";
+      statusEl.textContent = `Fetching screen ${id}…`;
+
+      try {
+        const r = await fetch(`/api/screen/${id}`);
+        const json = await r.json();
+        if (json.error || !json.data?.screen) {
+          throw new Error(json.error?.message || "No screen data");
+        }
+        screenData = json.data.screen;
+        fillPicker(screenData.todaysShowings);
+        setupTimeSlider(screenData.todaysShowings);
+        if (emulateTimeEl.checked) {
+          jumpTimeTo(timeInput.value ? new Date(timeInput.value) : new Date());
+        } else {
+          const show = pickShow(screenData.todaysShowings);
+          const idx = screenData.todaysShowings.indexOf(show);
+          if (idx >= 0) showPick.value = String(idx);
+          applySelection();
+        }
+      } catch (err) {
+        statusEl.className = "status error";
+        statusEl.textContent = String(err.message || err);
+      }
+    }
+
+    showPick.addEventListener("change", () => {
+      if (emulateTimeEl.checked) return;
+      applySelection();
+    });
+
+    emulateTimeEl.addEventListener("change", () => {
+      setTimeControlsEnabled(emulateTimeEl.checked);
+      if (emulateTimeEl.checked) {
+        jumpTimeTo(new Date());
+      } else {
+        applySelection();
+      }
+    });
+
+    timeSlider.addEventListener("input", () => {
+      if (syncingTimeUi || !emulateTimeEl.checked) return;
+      const when = emulatedDateFromSlider();
+      syncingTimeUi = true;
+      timeInput.value = toLocalInputValue(when);
+      syncingTimeUi = false;
+      applySelection();
+    });
+
+    timeInput.addEventListener("change", () => {
+      if (syncingTimeUi || !emulateTimeEl.checked || !timeInput.value) return;
+      jumpTimeTo(new Date(timeInput.value));
+    });
+
+    timeNowBtn.addEventListener("click", () => jumpTimeTo(new Date()));
+
+    rotationEl.addEventListener("change", scaleStage);
+    viewModeEl.addEventListener("change", scaleStage);
+
+    document.getElementById("loadBtn").addEventListener("click", loadScreen);
+    window.addEventListener("resize", scaleStage);
+    setTimeControlsEnabled(false);
+    scaleStage();
+    loadScreen();
+  </script>
+</body>
+</html>

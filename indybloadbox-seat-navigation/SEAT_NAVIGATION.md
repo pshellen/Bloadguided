@@ -1,9 +1,4 @@
-# Aud Sign and Seat Nav
-
-Package name: **Aud Sign and Seat Nav**
-
-This is the scanner-enabled package. The original **Indy Single Screen Info**
-package remains the poster-only version.
+# Ticket QR seat navigation
 
 This package can temporarily replace the auditorium poster with an animated
 route to a guest's seats. The current seat map is for Palmyra Auditorium 9.
@@ -22,10 +17,6 @@ machine. Only the local order lookup response is sent to the player.
 
 ## Sign setup
 
-- When installing this ZIP as a separate package, copy the original sign's
-  **Device Serial**, **Indy ID**, **Rotation**, **Blank**, logo, and debug
-  settings. Installing as a new package does not inherit another package's
-  configuration.
 - Enable **Seat navigation** on the Auditorium 9 sign.
 - Set **Order lookup URL** to the collector's LAN address, including the
   `{order}` placeholder. Example:

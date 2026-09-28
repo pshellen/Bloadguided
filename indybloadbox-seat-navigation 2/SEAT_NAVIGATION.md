@@ -1,9 +1,4 @@
-# Aud Sign and Seat Nav
-
-Package name: **Aud Sign and Seat Nav**
-
-This is the scanner-enabled package. The original **Indy Single Screen Info**
-package remains the poster-only version.
+# Ticket QR seat navigation
 
 This package can temporarily replace the auditorium poster with an animated
 route to a guest's seats. The current seat map is for Palmyra Auditorium 9.

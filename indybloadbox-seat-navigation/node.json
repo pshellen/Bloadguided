@@ -1,5 +1,5 @@
 {
-    "name": "Aud Sign and Seat Nav",
+    "name": "Indy Sign",
     "permissions": {
         "network": "Remote API access",
         "input": "Read ticket QR codes from a USB scanner"

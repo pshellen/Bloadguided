@@ -1,0 +1,388 @@
+#!/usr/bin/python2.7
+import sys, pytz, time, threading, os, traceback, requests, json, calendar, tempfile, glob, struct, select
+from urllib import quote
+from itertools import tee, islice, chain
+from datetime import datetime
+from hosted import config, node, device
+config.restart_on_update()
+
+DEVICE_TZ = pytz.timezone(config.metadata['timezone'])
+
+#  Message-Id: <1465504497.2051037.633156353.268DA54A@webmail.messagingengine.com>
+#  Message-Id: <CAHCqjYM87qcOTtXTJO-ZcV835q6P2SPa7=mW2ZkSbWmD_h7MOA@mail.gmail.com>
+#  In minutes
+BEFORE_FIRST_SHOW = 60
+BEFORE_OTHER_SHOWS = 30
+UPCOMING_MINUTES = 25
+
+COLOR_NOW = (0.45, 0.78, 1.0, 1.0)      # light blue border / badge
+COLOR_UPCOMING = (0.02, 0.55, 0.18, 1.0) # green
+
+IMGIX_BASE = "https://indy-systems.imgix.net/" 
+UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36'
+
+# Linux input key codes used by keyboard-style QR scanners.
+KEY_DIGITS = {
+    2: '1', 3: '2', 4: '3', 5: '4', 6: '5',
+    7: '6', 8: '7', 9: '8', 10: '9', 11: '0',
+    82: '0', 79: '1', 80: '2', 81: '3', 75: '4',
+    76: '5', 77: '6', 71: '7', 72: '8', 73: '9',
+}
+KEY_ENTER = (28, 96)
+INPUT_EVENT = struct.Struct('llHHi')
+
+def find_sign():
+    serial = os.environ.get('SERIAL')
+    for sign in config.signs:
+        if sign['serial'] == serial:
+            return sign
+    return None
+
+def write_seat_navigation(payload):
+    with open('seat_navigation.json', 'wb') as f:
+        json.dump(payload, f)
+
+def parse_utc(value):
+    if not value:
+        return None
+    value = value.strip()
+    for fmt in ('%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S.%fZ'):
+        try:
+            return calendar.timegm(datetime.strptime(value, fmt).timetuple())
+        except ValueError:
+            pass
+    return None
+
+def ticket_state(showing):
+    start = parse_utc(showing.get('showtime_utc'))
+    if start is None:
+        return None, None
+    now = time.time()
+    runtime = int(showing.get('runtime_minutes') or 120)
+    local_start = datetime.fromtimestamp(start, DEVICE_TZ)
+    local_now = datetime.now(DEVICE_TZ)
+    if local_start.date() != local_now.date():
+        if start < now:
+            return 'ended', 'This ticket is for a past date'
+        return 'future', 'This ticket is for a future date'
+    if start - now > 30 * 60:
+        return 'future', 'This showing starts more than 30 minutes from now'
+    if now > start + runtime * 60:
+        return 'ended', 'This showing has ended'
+    return None, None
+
+def publish_scan(sign, order_id, state, message, showing=None):
+    payload = {
+        'active': True,
+        'state': state,
+        'order_id': order_id,
+        'message': message,
+        'help': 'Please see a manager for help' if state != 'ok' else '',
+        'display_seconds': max(5, int(config.seat_display_seconds)),
+    }
+    if showing:
+        payload.update({
+            'title': showing.get('title') or '',
+            'auditorium': showing.get('auditorium') or '',
+            'screen_id': showing.get('screen_id'),
+            'showtime_utc': showing.get('showtime_utc') or '',
+            'seats': showing.get('seats') or [],
+        })
+    write_seat_navigation(payload)
+
+def lookup_order(sign, order_id):
+    template = (config.seat_lookup_url or '').strip()
+    if not template or '{order}' not in template:
+        publish_scan(sign, order_id, 'error', 'Seat lookup is not configured')
+        return
+    try:
+        url = template.replace('{order}', quote(order_id))
+        response = requests.get(url, headers={'User-Agent': UA}, timeout=8)
+        if response.status_code == 404:
+            publish_scan(sign, order_id, 'not_found', 'Order not found')
+            return
+        response.raise_for_status()
+        order = response.json()
+        showings = order.get('showings') or []
+        matching = [s for s in showings if str(s.get('screen_id')) == str(sign['indy_id'])]
+        if not matching:
+            other = showings[0] if showings else None
+            publish_scan(sign, order_id, 'wrong_auditorium', 'This ticket is for another auditorium', other)
+            return
+        showing = matching[0]
+        state, message = ticket_state(showing)
+        if state:
+            publish_scan(sign, order_id, state, message, showing)
+        else:
+            publish_scan(sign, order_id, 'ok', 'Follow the highlighted path to your seat', showing)
+    except Exception:
+        traceback.print_exc()
+        publish_scan(sign, order_id, 'error', 'Unable to look up this order')
+
+def scanner_path():
+    configured = (config.scanner_device or 'auto').strip()
+    if configured != 'auto':
+        return configured
+    devices = sorted(glob.glob('/dev/input/by-id/*-event-kbd'))
+    return devices[0] if devices else None
+
+def scanner_thread(sign):
+    buffer = ''
+    last_key = 0
+    while True:
+        path = scanner_path()
+        if not path:
+            time.sleep(5)
+            continue
+        try:
+            print >>sys.stderr, 'ticket scanner:', path
+            with open(path, 'rb', 0) as scanner:
+                while True:
+                    ready, _, _ = select.select([scanner], [], [], 1)
+                    if not ready:
+                        if buffer and time.time() - last_key > 3:
+                            buffer = ''
+                        continue
+                    raw = scanner.read(INPUT_EVENT.size)
+                    if len(raw) != INPUT_EVENT.size:
+                        break
+                    _, _, event_type, code, value = INPUT_EVENT.unpack(raw)
+                    if event_type != 1 or value != 1:
+                        continue
+                    last_key = time.time()
+                    if code in KEY_DIGITS:
+                        buffer += KEY_DIGITS[code]
+                        buffer = buffer[-32:]
+                    elif code in KEY_ENTER:
+                        order_id, buffer = buffer, ''
+                        if order_id:
+                            lookup_order(sign, order_id)
+        except Exception:
+            traceback.print_exc()
+            time.sleep(5)
+
+def localize(dt):
+    unix = calendar.timegm(dt.timetuple())
+    dt = dt.replace(tzinfo=pytz.utc)
+    dt = dt.astimezone(DEVICE_TZ)
+    dt = dt.replace(tzinfo=None)
+    return dt, unix
+
+def pairwise(iterable):
+    a, b = tee(iterable)
+    b = chain(islice(b, 1, None), [None])
+    return zip(a, b)
+
+def send_clock():
+    node.send('/time/set:%s' % (
+        localize(datetime.utcnow())[0].strftime("%H:%M"),
+    ))
+
+def fetch_into(src, dst):
+    if os.path.exists(dst):
+        return dst
+    try:
+        r = requests.get(
+            src,
+            headers = {
+                'User-Agent': UA,
+            },
+            timeout = 10,
+        )
+        r.raise_for_status()
+        with tempfile.NamedTemporaryFile(dir=os.getcwd()) as tmp:
+            tmp.write(r.content)
+            tmp.flush()
+            os.rename(tmp.name, dst)
+            tmp.delete = False
+        return dst
+    except Exception as err:
+        traceback.print_exc()
+        time.sleep(30) # enforce minimum error delay
+        return None
+
+def fetch_indy(screen_id):
+    try:
+        r = requests.post(
+            "https://api-us.indy.systems/graphql", 
+            headers = {
+                'User-Agent': UA,
+                'Accept': 'application/graphql-response+json',
+                'Content-Type': 'application/json',
+            },
+            timeout = 5,
+            data = '''
+                {"query": "{ screen(id: \\"%d\\") {name todaysShowings { time current past showingBadges { id title displayName } movie { name posterImage animatedPosterVideo showingStatus duration rating ratingReason }}}}"}
+            '''.strip() % (screen_id,)
+        )
+        r.raise_for_status()
+        return r.json()['data']['screen']
+    except Exception as err:
+        traceback.print_exc()
+        time.sleep(30) # enforce minimum error delay
+        return None
+
+def parse_indy(screen):
+    now = time.time()
+
+    def iter_shows():
+        for show in screen['todaysShowings']:
+            start, unix = localize(datetime.strptime(show['time'], "%Y-%m-%dT%H:%M:%SZ"))
+            poster = show['movie']['posterImage']
+            animated = show['movie'].get('animatedPosterVideo')
+            poster_file = ""
+            media_type = "image"
+
+            if animated:
+                poster_file = fetch_into(
+                    src = '%s/%s?auto=format,compress' % (IMGIX_BASE, animated),
+                    dst = 'motion-%s.mp4' % animated,
+                )
+                if poster_file:
+                    media_type = "video"
+
+            if not poster_file and poster:
+                poster_file = fetch_into(
+                    src = '%s/%s?fit=crop&w=1000&h=1500&fm=jpeg&auto=format,compress&cs=origin' % (IMGIX_BASE, poster),
+                    dst = 'poster-%s.jpg' % poster,
+                )
+
+            status = show['movie'].get('showingStatus') or ''
+
+            is_3d = False
+            for badge in (show.get('showingBadges') or []):
+                title = (badge.get('title') or badge.get('displayName') or '').strip().lower()
+                if title == '3d' or title.startswith('3d ') or ' 3d' in title:
+                    is_3d = True
+                    break
+
+            yield dict(
+                unix = unix,
+                start = start.strftime("%-I:%M %p").upper(),
+                past = show['past'],
+                current = show['current'],
+                name = show['movie']['name'],
+                rating = show['movie'].get('rating') or '',
+                rating_reason = show['movie'].get('ratingReason') or '',
+                runtime = show['movie']['duration'],
+                status = status,
+                status_label = status.upper(),
+                is_3d = is_3d,
+                upcoming = False,
+                color = COLOR_NOW,
+                poster_file = poster_file or "",
+                media_type = media_type,
+            )
+
+    shows = list(iter_shows())
+    out = {
+        'name': screen['name'],
+    }
+
+    def show_end(idx):
+        show = shows[idx]
+        if idx + 1 < len(shows):
+            return shows[idx + 1]['unix']
+        runtime = show.get('runtime') or 120
+        return show['unix'] + runtime * 60
+
+    # 1) Upcoming window: 25 minutes before start until start
+    for idx, show in enumerate(shows):
+        upcoming_from = show['unix'] - UPCOMING_MINUTES * 60
+        if upcoming_from <= now < show['unix']:
+            show = dict(show)
+            show['upcoming'] = True
+            show['status_label'] = 'NEXT SHOWING'
+            show['color'] = COLOR_UPCOMING
+            out['show'] = show
+            return out
+
+    # 2) Playing window: start until next show (or start + runtime)
+    for idx, show in enumerate(shows):
+        if show['unix'] <= now < show_end(idx):
+            show = dict(show)
+            show['upcoming'] = False
+            show['status_label'] = 'NOW PLAYING'
+            show['color'] = COLOR_NOW
+            out['show'] = show
+            return out
+
+    # 3) Fall back to Indy's current flag
+    for show in shows:
+        if show['current']:
+            show = dict(show)
+            show['upcoming'] = False
+            show['status_label'] = 'NOW PLAYING'
+            show['color'] = COLOR_NOW
+            out['show'] = show
+            break
+
+    return out
+
+def update_thread():
+    sign = find_sign()
+    if not sign:
+        print >>sys.stderr, "couldn't find my sign"
+        return
+
+    should_blank = sign['blank']
+    device.turn_screen_on()
+
+    while 1:
+        indy_data = fetch_indy(sign['indy_id'])
+        if indy_data is None:
+            print >>sys.stderr, "No screen data"
+            time.sleep(60)
+            continue
+
+        with open('indy.json', 'wb') as f:
+            json.dump(indy_data, f)
+
+        for wait in xrange(12):
+            screen_data = parse_indy(indy_data)
+            with open('screen.json', 'wb') as f:
+                json.dump(screen_data, f)
+
+            if should_blank: 
+                if 'show' in screen_data:
+                    device.turn_screen_on()
+                else:
+                    device.turn_screen_off()
+
+            time.sleep(10)
+
+def test():
+    from pprint import pprint
+    with open('indy.json', 'rb') as f:
+        screen = json.load(f)
+        pprint(parse_indy(screen))
+
+def main():
+    if 'TEST' in os.environ:
+        send_clock()
+        test()
+        return
+
+    while time.time() < 1000000:
+        print >>sys.stderr, "waiting for correct time"
+        time.sleep(1)
+
+    if 'SERIAL' in os.environ:
+        sign = find_sign()
+        update = threading.Thread(target=update_thread)
+        update.daemon = True
+        update.start()
+        if sign and sign.get('seat_navigation', False):
+            write_seat_navigation({'active': False})
+            scanner = threading.Thread(target=scanner_thread, args=(sign,))
+            scanner.daemon = True
+            scanner.start()
+    else:
+        print >>sys.stderr, "updating disabled"
+
+    while 1:
+        send_clock()
+        time.sleep(5)
+
+if __name__ == "__main__":
+    main()

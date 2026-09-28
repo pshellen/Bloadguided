@@ -1,7 +1,7 @@
 {
-    "name": "Aud Sign and Seat Nav",
+    "name": "Indy Single Screen Info",
     "author": "Florian Wesch <fw@info-beamer.com>",
-    "desc": "INDY auditorium poster display with ticket QR scanning and animated seat navigation.",
+    "desc": "Handles a single screen and shows information based on Indy API.",
     "runtime": {
         "antialias": true
     },
