@@ -1,5 +1,5 @@
 {
-    "name": "Aud Sign and Seat Nav",
+    "name": "Aud-Sign-and-Seat-Nav",
     "author": "Florian Wesch <fw@info-beamer.com>",
     "desc": "INDY auditorium poster display with ticket QR scanning and animated seat navigation.",
     "runtime": {

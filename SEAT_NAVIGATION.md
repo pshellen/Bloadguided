@@ -1,6 +1,6 @@
-# Aud Sign and Seat Nav
+# Aud-Sign-and-Seat-Nav
 
-Package name: **Aud Sign and Seat Nav**
+Package name: **Aud-Sign-and-Seat-Nav**
 
 This is the scanner-enabled package. The original **Indy Single Screen Info**
 package remains the poster-only version.
@@ -32,9 +32,10 @@ machine. Only the local order lookup response is sent to the player.
 
   `http://192.168.1.20:8765/api/order/{order}`
 
-- Leave **Scanner device** set to `auto` when only one keyboard-style scanner
-  is attached. If the player has multiple keyboards, enter the stable scanner
-  path from `/dev/input/by-id/` ending in `-event-kbd`.
+- Leave **Scanner device** set to `auto` to monitor the available
+  `/dev/input/event*` devices. A `/dev/input/by-id/*-event-kbd` path is used
+  automatically when the player provides one. To force a device, enter its
+  `/dev/input/eventN` path.
 - Set **Seat map display time** (20 seconds by default).
 
 The collector endpoint must return this shape:

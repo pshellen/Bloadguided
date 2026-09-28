@@ -119,46 +119,72 @@ def lookup_order(sign, order_id):
         traceback.print_exc()
         publish_scan(sign, order_id, 'error', 'Unable to look up this order')
 
-def scanner_path():
+def scanner_paths():
     configured = (config.scanner_device or 'auto').strip()
     if configured != 'auto':
-        return configured
+        return [configured]
     devices = sorted(glob.glob('/dev/input/by-id/*-event-kbd'))
-    return devices[0] if devices else None
+    if devices:
+        return devices
+    # info-beamer's player image may expose event devices without creating the
+    # optional /dev/input/by-id symlinks. Listening to all event devices is
+    # safe here: only digit key presses followed by Enter trigger a lookup.
+    return sorted(glob.glob('/dev/input/event*'))
 
 def scanner_thread(sign):
-    buffer = ''
-    last_key = 0
     while True:
-        path = scanner_path()
-        if not path:
+        paths = scanner_paths()
+        if not paths:
+            print >>sys.stderr, 'ticket scanner: no input event devices found'
             time.sleep(5)
             continue
+        scanners = []
         try:
-            print >>sys.stderr, 'ticket scanner:', path
-            with open(path, 'rb', 0) as scanner:
-                while True:
-                    ready, _, _ = select.select([scanner], [], [], 1)
-                    if not ready:
-                        if buffer and time.time() - last_key > 3:
-                            buffer = ''
-                        continue
+            for path in paths:
+                try:
+                    scanners.append(open(path, 'rb', 0))
+                    print >>sys.stderr, 'ticket scanner listening:', path
+                except IOError:
+                    traceback.print_exc()
+            if not scanners:
+                time.sleep(5)
+                continue
+            buffers = dict((scanner.fileno(), '') for scanner in scanners)
+            last_keys = dict((scanner.fileno(), 0) for scanner in scanners)
+            while scanners:
+                ready, _, _ = select.select(scanners, [], [], 1)
+                now = time.time()
+                for scanner in scanners:
+                    fd = scanner.fileno()
+                    if buffers[fd] and now - last_keys[fd] > 3:
+                        buffers[fd] = ''
+                for scanner in ready:
+                    fd = scanner.fileno()
                     raw = scanner.read(INPUT_EVENT.size)
                     if len(raw) != INPUT_EVENT.size:
-                        break
+                        scanner.close()
+                        scanners.remove(scanner)
+                        continue
                     _, _, event_type, code, value = INPUT_EVENT.unpack(raw)
                     if event_type != 1 or value != 1:
                         continue
-                    last_key = time.time()
+                    last_keys[fd] = now
                     if code in KEY_DIGITS:
-                        buffer += KEY_DIGITS[code]
-                        buffer = buffer[-32:]
+                        buffers[fd] = (buffers[fd] + KEY_DIGITS[code])[-32:]
                     elif code in KEY_ENTER:
-                        order_id, buffer = buffer, ''
+                        order_id, buffers[fd] = buffers[fd], ''
                         if order_id:
+                            print >>sys.stderr, 'ticket scanner read order:', order_id
                             lookup_order(sign, order_id)
         except Exception:
             traceback.print_exc()
+        finally:
+            for scanner in scanners:
+                try:
+                    scanner.close()
+                except Exception:
+                    pass
+        if paths:
             time.sleep(5)
 
 def localize(dt):

@@ -1,5 +1,5 @@
 {
-    "name": "Aud Sign and Seat Nav",
+    "name": "Aud-Sign-and-Seat-Nav",
     "permissions": {
         "network": "Remote API access",
         "input": "Read ticket QR codes from a USB scanner"
@@ -74,7 +74,7 @@
         "name": "scanner_device",
         "type": "string",
         "default": "auto",
-        "hint": "Use auto, or a stable /dev/input/by-id/...-event-kbd path"
+        "hint": "Use auto, or a specific /dev/input/eventN path"
     }, {
         "title": "Seat map display time",
         "ui_width": 3,
