@@ -8,15 +8,17 @@ local json = require "json"
 local matrix = require "matrix2d"
 
 local font = resource.load_font "font.ttf"
+local package_version = "0.1.2"
 local black = resource.create_colored_texture(0, 0, 0, 1)
 local badge_blue = resource.create_colored_texture(2/255, 122/255, 193/255, 1)
 local badge_green = resource.create_colored_texture(0.02, 0.55, 0.18, 1)
 local badge_3d = resource.load_image "3D.png"
 local top_logo = resource.load_image "logo.png"
 local route_blue = resource.create_colored_texture(0.02, 0.36, 0.86, 1)
-local seat_blue = resource.create_colored_texture(0.18, 0.43, 0.82, 1)
-local seat_fill = resource.create_colored_texture(0.035, 0.055, 0.09, 1)
+local seat_chair_teal = resource.load_image "seat-chair-teal.png"
+local seat_chair_yellow = resource.load_image "seat-chair-yellow.png"
 local warning_red = resource.create_colored_texture(0.82, 0.16, 0.18, 1)
+local screen_gray = resource.create_colored_texture(0.72, 0.74, 0.78, 1)
 
 local indy_id
 local screen = {name = ""}
@@ -489,16 +491,12 @@ end
 
 local function draw_seat(label, x, y, selected)
     local px, py, s = map_transform(x, y)
-    local w, h = 38*s, 32*s
-    if selected then
-        seat_blue:draw(px-w/2-4*s, py-h/2-4*s, px+w/2+4*s, py+h/2+4*s)
-    else
-        seat_blue:draw(px-w/2-2*s, py-h/2-2*s, px+w/2+2*s, py+h/2+2*s)
-    end
-    seat_fill:draw(px-w/2, py-h/2, px+w/2, py+h/2)
-    local size = math.max(12, 17*s)
+    local w, h = 44*s, 39*s
+    local chair = selected and seat_chair_yellow or seat_chair_teal
+    chair:draw(px-w/2, py-h/2, px+w/2, py+h/2)
+    local size = math.max(11, 15*s)
     local tw = font:width(label, size)
-    font:write(px-tw/2, py-size/2, label, size, 1,1,1,1)
+    font:write(px-tw/2, py-size*0.55, label, size, 1,1,1,1)
 end
 
 local function draw_seat_map()
@@ -506,6 +504,15 @@ local function draw_seat_map()
     for _, label in ipairs(seat_navigation.seats or {}) do
         selected[string.upper(label)] = true
     end
+
+    local screen_x1, screen_y1, screen_scale = map_transform(135, 55)
+    local screen_x2, screen_y2 = map_transform(657, 88)
+    screen_gray:draw(screen_x1, screen_y1, screen_x2, screen_y2)
+    local screen_size = math.max(12, 18*screen_scale)
+    local screen_text_w = font:width('SCREEN', screen_size)
+    font:write((screen_x1+screen_x2-screen_text_w)/2,
+               screen_y1+(screen_y2-screen_y1-screen_size)/2,
+               'SCREEN', screen_size, 0.05,0.05,0.06,1)
 
     for row, groups in pairs(seat_rows) do
         for _, group in ipairs(groups) do
@@ -522,9 +529,6 @@ local function draw_seat_map()
         draw_path_to(label, progress)
     end
 
-    local ex, ey = map_transform(45, 748)
-    local _, _, s = map_transform(0, 0)
-    font:write(ex + 12*s, ey - 18*s, 'ENTRY', math.max(12, 17*s), 1,1,1,1)
 end
 
 local function draw_navigation_centered(text, y, size, max_width)
@@ -659,6 +663,7 @@ function node.render()
 
     if debug then
         local x, y = WIDTH-250, 10
+        font:write(x, y, "Version: " .. package_version, 12, 1,1,1,1); y=y+12
         font:write(x, y, "Serial: " .. my_serial, 12, 1,1,1,1); y=y+12
         font:write(x, y, ("Time: %s"):format(local_time), 12, 1,1,1,1); y=y+12
         if screen.show then

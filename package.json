@@ -1,7 +1,8 @@
 {
     "name": "Aud-Sign-and-Seat-Nav",
+    "version": "0.1.2",
     "author": "pshellen",
-    "desc": "INDY auditorium poster display with ticket QR scanning and animated seat navigation.",
+    "desc": "v0.1.2 - INDY auditorium poster display with ticket QR scanning and animated seat navigation.",
     "runtime": {
         "antialias": true
     },

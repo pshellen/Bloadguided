@@ -2,6 +2,8 @@
 
 Package name: **Aud-Sign-and-Seat-Nav**
 
+Current version: **0.1.2**
+
 This is the scanner-enabled package. The original **Indy Single Screen Info**
 package remains the poster-only version.
 
